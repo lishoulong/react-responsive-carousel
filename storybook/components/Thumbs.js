@@ -1,5 +1,7 @@
 var React = require('react');
 var ReactDOM = require('react-dom');
+var PropTypes = require('prop-types');
+var CreateReactClass = require('create-react-class');
 var klass = require('../cssClasses');
 var outerWidth = require('../dimensions').outerWidth;
 var CSSTranslate = require('../CSSTranslate');
@@ -8,12 +10,12 @@ var Swipe = require('react-easy-swipe');
 // react-swipe was compiled using babel
 Swipe = Swipe.default;
 
-module.exports = React.createClass({
+module.exports = CreateReactClass({
 
     propsTypes: {
-        children: React.PropTypes.element.isRequired,
-        transitionTime: React.PropTypes.number,
-        selectedItem: React.PropTypes.number
+        children: PropTypes.element.isRequired,
+        transitionTime: PropTypes.number,
+        selectedItem: PropTypes.number
     },
 
     getDefaultProps () {
@@ -41,12 +43,6 @@ module.exports = React.createClass({
         }
     },
 
-    componentWillUnmount() {
-        // removing listeners
-        window.removeEventListener("resize", this.updateStatics);
-        window.removeEventListener("DOMContentLoaded", this.updateStatics);
-    },
-
     componentDidMount (nextProps) {
         // as the widths are calculated, we need to resize
         // the carousel when the window is resized
@@ -54,12 +50,25 @@ module.exports = React.createClass({
         // issue #2 - image loading smaller
         window.addEventListener("DOMContentLoaded", this.updateStatics);
 
-        var defaultImg = ReactDOM.findDOMNode(this.thumb0).getElementsByTagName('img')[0];
-        defaultImg.addEventListener('load', this.setMountState);
+        var defaultImg = this.getDefaultImage();
+        if (defaultImg) {
+            defaultImg.addEventListener('load', this.onFirstImageLoad);
+        }
 
         // when the component is rendered we need to calculate
         // the container size to adjust the responsive behaviour
         this.updateStatics();
+    },
+
+    componentWillUnmount() {
+        // removing listeners
+        window.removeEventListener("resize", this.updateStatics);
+        window.removeEventListener("DOMContentLoaded", this.updateStatics);
+
+        var defaultImg = this.getDefaultImage();
+        if (defaultImg) {
+            defaultImg.removeEventListener('load', this.onFirstImageLoad);
+        }
     },
 
     updateStatics () {
@@ -71,8 +80,20 @@ module.exports = React.createClass({
         this.showArrows = this.visibleItems < total;
     },
 
-    setMountState () {
+    getDefaultImage () {
+        var firstItem = ReactDOM.findDOMNode(this.thumb0);
+
+        if (firstItem) {
+            var firstImage = firstItem.getElementsByTagName('img');
+            return firstImage && firstImage[0];
+        }
+
+        return null;
+    },
+
+    onFirstImageLoad () {
         this.setState({hasMount: true});
+        this.updateStatics();
     },
 
     handleClickItem (index, item) {
@@ -198,7 +219,7 @@ module.exports = React.createClass({
     },
 
     render () {
-        if (this.props.children.length === 0) {
+        if (!this.props.children) {
             return null;
         }
 

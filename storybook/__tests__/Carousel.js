@@ -1,49 +1,48 @@
 import React from 'react';
-import TestUtils from 'react-addons-test-utils';
 import ReactDOM from 'react-dom';
+import { shallow, mount } from 'enzyme';
 
 describe("Slider", function() {
-	const findByTag = TestUtils.scryRenderedDOMComponentsWithTag;
-	const findByClass = TestUtils.scryRenderedDOMComponentsWithClass;
-
 	jest.autoMockOff();
 
 	const Carousel = require('../components/Carousel');
 
 	let component, componentInstance, totalChildren, lastItemIndex;
 
-	const renderComponent = props => {
-		componentInstance = TestUtils.renderIntoDocument(
+	const bootstrap = (props, children) => {
+		component = mount(
 	  		<Carousel {...props}>
-	  			<img src="assets/1.jpeg" />
-				<img src="assets/2.jpeg" />
-				<img src="assets/3.jpeg" />
-				<img src="assets/4.jpeg" />
-				<img src="assets/5.jpeg" />
-				<img src="assets/6.jpeg" />
-				<img src="assets/7.jpeg" />
+	  			{children}
 	  		</Carousel>
 	  	);
 
-        totalChildren = componentInstance.props.children.length;
+        componentInstance = component.instance();
+
+        totalChildren = children && children.length ? componentInstance.props.children.length : 0;
         lastItemIndex = totalChildren - 1;
 	}
 
-	beforeEach(() => {
-		renderComponent({});
-	});
+    const renderDefaultComponent = (props) => {
+        bootstrap(props, [
+                <img src="assets/1.jpeg" key="1" />,
+                <img src="assets/2.jpeg" key="2" />,
+                <img src="assets/3.jpeg" key="3" />,
+                <img src="assets/4.jpeg" key="4" />,
+                <img src="assets/5.jpeg" key="5" />,
+                <img src="assets/6.jpeg" key="6" />,
+                <img src="assets/7.jpeg" key="7" />,
+            ]
+        );
+    }
 
-	afterEach(function() {
-		if (componentInstance && componentInstance.isMounted()) {
-	      // Only components with a parent will be unmounted
-	      ReactDOM.unmountComponentAtNode(document);
-	    }
-  	});
+	beforeEach(() => {
+		renderDefaultComponent({});
+	});
 
   	describe("Basics", () => {
         describe("DisplayName", () => {
-            it('should be Slider', () => {
-                expect(Carousel.displayName).toBe('Slider');
+            it('should be Carousel', () => {
+                expect(Carousel.displayName).toBe('Carousel');
             });
         });
 
@@ -59,7 +58,11 @@ describe("Slider", function() {
                 useKeyboardArrows: false,
                 autoPlay: false,
                 stopOnHover: true,
-                interval: 3000
+                interval: 3000,
+                transitionTime: 350,
+                swipeScrollTolerance: 5,
+                dynamicHeight: false,
+                emulateTouch: false
             };
 
             Object.keys(props).forEach(prop => {
@@ -85,12 +88,28 @@ describe("Slider", function() {
   	});
 
     describe("componentDidMount", () => {
-        beforeEach(() => {
+        it("should bind the events", () => {
             componentInstance.bindEvents = jest.genMockFunction();
             componentInstance.componentDidMount();
-
+            expect(componentInstance.bindEvents.mock.calls.length).toBe(1);
         });
-        it("should bind the events", () => {
+
+        it('should not bind the events if there are no children', () => {
+            bootstrap({}, null);
+            componentInstance.bindEvents = jest.genMockFunction();
+            componentInstance.componentDidMount();
+            expect(componentInstance.bindEvents.mock.calls.length).toBe(0);
+        });
+
+        it("should bind the events if children were lazy loaded (through componentDidUpdate)", () => {
+            bootstrap({}, null);
+            componentInstance.bindEvents = jest.genMockFunction();
+            expect(componentInstance.bindEvents.mock.calls.length).toBe(0);
+
+            component.setProps({
+                children: [<img src="assets/1.jpeg" key="1" />]
+            });
+
             expect(componentInstance.bindEvents.mock.calls.length).toBe(1);
         });
     });
@@ -129,7 +148,7 @@ describe("Slider", function() {
 
         describe("when useKeyboardArrows is true", () => {
             beforeEach(() => {
-                renderComponent({
+                renderDefaultComponent({
                     useKeyboardArrows: true
                 });
 
@@ -175,7 +194,7 @@ describe("Slider", function() {
 
         describe("when useKeyboardArrows is true", () => {
             beforeEach(() => {
-                renderComponent({
+                renderDefaultComponent({
                     useKeyboardArrows: true
                 });
 
@@ -200,7 +219,7 @@ describe("Slider", function() {
 
     describe("navigateWithKeyboard", () => {
         beforeEach(() => {
-            renderComponent({
+            renderDefaultComponent({
                 useKeyboardArrows: true
             });
 
@@ -278,7 +297,7 @@ describe("Slider", function() {
     });
 
 	it("should add a thumb-wrapper container", () => {
-		expect(findByClass(componentInstance, 'thumbs-wrapper').length).toBe(1);
+		expect(component.find('.thumbs-wrapper').length).toBe(1);
 	});
 
 	describe("Moving", () => {
@@ -289,15 +308,15 @@ describe("Slider", function() {
 		});
 
 		it("should set the selectedItem from the props", () => {
-			renderComponent({selectedItem: 3});
+			renderDefaultComponent({selectedItem: 3});
 			expect(componentInstance.state.selectedItem).toBe(3);
 		});
 
 		it("should update the position of the Carousel if selectedItem is changed", () => {
-			TestUtils.Simulate.click(componentInstance['item2']);
+			component.ref('item2').simulate('click');
 			expect(componentInstance.state.selectedItem).toBe(2);
 
-			TestUtils.Simulate.click(componentInstance['item3']);
+            component.ref('item3').simulate('click');
 			expect(componentInstance.state.selectedItem).toBe(3);
 		});
 	})
@@ -306,19 +325,19 @@ describe("Slider", function() {
 		it("should set the index as selectedItem when clicked", () => {
 			expect(componentInstance.state.selectedItem).toBe(0);
 
-			TestUtils.Simulate.click(componentInstance['item1']);
+            component.ref('item1').simulate('click');
 			expect(componentInstance.state.selectedItem).toBe(1);
 
-			TestUtils.Simulate.click(componentInstance['item3']);
+            component.ref('item3').simulate('click');
 			expect(componentInstance.state.selectedItem).toBe(3);
 		});
 
 		it("should call a given onSelectItem function when an item is clicked", () => {
 			var mockedFunction = jest.genMockFunction();
 
-			renderComponent({onClickItem: mockedFunction});
+			renderDefaultComponent({onClickItem: mockedFunction});
 
-			TestUtils.Simulate.click(componentInstance['item1']);
+            component.ref('item1').simulate('click');
 			expect(mockedFunction).toBeCalled();
 		});
 	})
@@ -329,38 +348,38 @@ describe("Slider", function() {
 		});
 
 		it("should disable the left arrow if we are showing the first item", () => {
-			TestUtils.Simulate.click(componentInstance['item0']);
+			component.ref('item0').simulate('click');
 			expect(ReactDOM.findDOMNode(componentInstance).querySelectorAll('.carousel-slider .control-prev.control-disabled').length).toBe(1);
 		});
 
 		it("should enable the left arrow if we are showing other than the first item", () => {
-			TestUtils.Simulate.click(componentInstance['item1']);
+			component.ref('item1').simulate('click');
 			expect(ReactDOM.findDOMNode(componentInstance).querySelectorAll('.carousel-slider .control-prev.control-disabled').length).toBe(0);
 		});
 
 		it("should disable the right arrow if we reach the lastPosition", () => {
-			TestUtils.Simulate.click(componentInstance['item1']);
+			component.ref('item1').simulate('click');
 			expect(ReactDOM.findDOMNode(componentInstance).querySelectorAll('.carousel-slider .control-next.control-disabled').length).toBe(0);
 
-			TestUtils.Simulate.click(componentInstance['item6']);
+			component.ref('item6').simulate('click');
 			expect(ReactDOM.findDOMNode(componentInstance).querySelectorAll('.carousel-slider .control-next.control-disabled').length).toBe(1);
 		});
 	});
 
     describe("Infinite Loop", () => {
         beforeEach(() => {
-            renderComponent({
+            renderDefaultComponent({
                 infiniteLoop: true
             })
         });
 
         it("should enable the prev arrow if we are showing the first item", () => {
-            TestUtils.Simulate.click(componentInstance['item0']);
+            component.ref('item0').simulate('click');
             expect(ReactDOM.findDOMNode(componentInstance).querySelectorAll('.carousel-slider .control-prev.control-disabled').length).toBe(0);
         });
 
         it("should enable the right arrow if we reach the lastPosition", () => {
-            TestUtils.Simulate.click(componentInstance['item6']);
+            component.ref('item6').simulate('click');
             expect(ReactDOM.findDOMNode(componentInstance).querySelectorAll('.carousel-slider .control-next.control-disabled').length).toBe(0);
         });
 
@@ -390,7 +409,7 @@ describe("Slider", function() {
             jest.useFakeTimers();
             window.addEventListener = jest.genMockFunction();
 
-            renderComponent({
+            renderDefaultComponent({
                 autoPlay: true
             });
         });
