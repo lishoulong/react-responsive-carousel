@@ -1,38 +1,45 @@
-var React = require('react');
-var ReactDOM = require('react-dom');
-var PropTypes = require('prop-types');
-var CreateReactClass = require('create-react-class');
-var klass = require('../cssClasses');
-var outerWidth = require('../dimensions').outerWidth;
-var CSSTranslate = require('../CSSTranslate');
-var Swipe = require('react-easy-swipe');
+import React, { Component } from 'react';
+import ReactDOM from 'react-dom';
+import PropTypes from 'prop-types';
+import klass from '../cssClasses';
+import { outerWidth } from '../dimensions';
+import CSSTranslate from '../CSSTranslate';
+import Swipe from 'react-easy-swipe';
 
-// react-swipe was compiled using babel
-Swipe = Swipe.default;
+class Thumbs extends Component {
+    static displayName = 'Thumbs';
 
-module.exports = CreateReactClass({
-
-    propsTypes: {
+    static propsTypes = {
         children: PropTypes.element.isRequired,
         transitionTime: PropTypes.number,
         selectedItem: PropTypes.number
-    },
+    };
 
-    getDefaultProps () {
-        return {
-            selectedItem: 0,
-            transitionTime: 350,
-            axis: 'horizontal'
-        }
-    },
+    static defaultProps = {
+        selectedItem: 0,
+        transitionTime: 350,
+        axis: 'horizontal'
+    };
 
-    getInitialState () {
-        return {
-            selectedItem: this.props.selectedItem,
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            initialized: false,
+            selectedItem: props.selectedItem,
             hasMount: false,
-            firstItem: this.getFirstItem(this.props.selectedItem)
-        };
-    },
+            firstItem: this.getFirstItem(props.selectedItem),
+            images: []
+        }
+    }
+
+    componentDidMount (nextProps) {
+        if (!this.props.children) {
+            return;
+        }
+
+        this.setupThumbs();
+    }
 
     componentWillReceiveProps (props, state) {
         if (props.selectedItem !== this.state.selectedItem) {
@@ -41,89 +48,118 @@ module.exports = CreateReactClass({
                 firstItem: this.getFirstItem(props.selectedItem)
             });
         }
-    },
+    }
 
-    componentDidMount (nextProps) {
+    componentDidUpdate(prevProps) {
+        if (!prevProps.children && this.props.children && !this.state.initialized) {
+            this.setupThumbs();
+        }
+    }
+
+    componentWillUnmount() {
+        this.destroyThumbs();
+    }
+
+    setupThumbs () {
         // as the widths are calculated, we need to resize
         // the carousel when the window is resized
-        window.addEventListener("resize", this.updateStatics);
+        window.addEventListener("resize", this.updateSizes);
         // issue #2 - image loading smaller
-        window.addEventListener("DOMContentLoaded", this.updateStatics);
+        window.addEventListener("DOMContentLoaded", this.updateSizes);
 
-        var defaultImg = this.getDefaultImage();
-        if (defaultImg) {
-            defaultImg.addEventListener('load', this.onFirstImageLoad);
+        const images = this.getImages();
+
+        if (!images) {
+            return;
         }
+
+        this.setState({
+            initialized: true,
+            images
+        });
 
         // when the component is rendered we need to calculate
         // the container size to adjust the responsive behaviour
-        this.updateStatics();
-    },
+        this.updateSizes();
+    }
 
-    componentWillUnmount() {
+    destroyThumbs () {
         // removing listeners
-        window.removeEventListener("resize", this.updateStatics);
-        window.removeEventListener("DOMContentLoaded", this.updateStatics);
+        window.removeEventListener("resize", this.updateSizes);
+        window.removeEventListener("DOMContentLoaded", this.updateSizes);
+    }
 
-        var defaultImg = this.getDefaultImage();
-        if (defaultImg) {
-            defaultImg.removeEventListener('load', this.onFirstImageLoad);
+    updateSizes = () => {
+        if (!this.state.initialized) {
+            return;
         }
-    },
 
-    updateStatics () {
-        var total = this.props.children.length;
+        const total = this.props.children.length;
         this.wrapperSize = this.itemsWrapper.clientWidth;
-        this.itemSize = outerWidth(this.thumb0);
+        this.itemSize = outerWidth(this.refs.thumb0);
         this.visibleItems = Math.floor(this.wrapperSize / this.itemSize);
         this.lastPosition = total - this.visibleItems;
         this.showArrows = this.visibleItems < total;
-    },
+    }
 
-    getDefaultImage () {
-        var firstItem = ReactDOM.findDOMNode(this.thumb0);
+    getImages() {
+        const images = React.Children.map(this.props.children, (item, index) => {
+            let img = item;
 
-        if (firstItem) {
-            var firstImage = firstItem.getElementsByTagName('img');
-            return firstImage && firstImage[0];
+            // if the item is not an image, try to find the first image in the item's children.
+            if (item.type !== "img") {
+                img = React.Children.toArray(item.props.children).filter((children) => children.type === "img")[0];
+            }
+
+            if (!img || img.length === 0) {
+                return null;
+            }
+
+            return img;
+        });
+
+        if (images.filter(image => image !== null).length === 0) {
+            console.warn(`No images found! Can't build the thumb list without images. If you don't need thumbs, set showThumbs={false} in the Carousel. Note that it's not possible to get images rendered inside custom components. More info at https://github.com/leandrowd/react-responsive-carousel/blob/master/TROUBLESHOOTING.md`);
+
+            return null;
         }
 
-        return null;
-    },
+        return images;
+    }
 
-    onFirstImageLoad () {
+    setMountState = () => {
         this.setState({hasMount: true});
-        this.updateStatics();
-    },
+        this.updateSizes();
+    }
 
-    handleClickItem (index, item) {
-        var handler = this.props.onSelectItem;
+    handleClickItem = (index, item) => {
+        const handler = this.props.onSelectItem;
 
         if (typeof handler === 'function') {
             handler(index, item);
         }
-    },
+    }
 
-    onSwipeStart() {
+    onSwipeStart = () => {
         this.setState({
             swiping: true
         });
-    },
+    }
 
-    onSwipeEnd() {
+    onSwipeEnd = () => {
         this.setState({
             swiping: false
         });
-    },
+    }
 
-    onSwipeMove(deltaX) {
-        var leftBoundry = 0;
-        var list = ReactDOM.findDOMNode(this.itemList);
-        var wrapperSize = list.clientWidth;
-        var visibleItems = Math.floor(wrapperSize / this.itemSize);
+    onSwipeMove = (deltaX) => {
+        const leftBoundry = 0;
+        const list = ReactDOM.findDOMNode(this.itemList);
+        const wrapperSize = list.clientWidth;
+        const visibleItems = Math.floor(wrapperSize / this.itemSize);
 
-        var currentPosition = - this.state.firstItem * this.itemSize;
-        var lastLeftBoundry = - this.visibleItems * this.itemSize;
+        const currentPosition = - this.state.firstItem * this.itemSize;
+        const lastLeftBoundry = - this.visibleItems * this.itemSize;
 
 
         // prevent user from swiping left out of boundaries
@@ -136,7 +172,7 @@ module.exports = CreateReactClass({
             deltaX = 0;
         }
 
-        var position = currentPosition + (100 / (wrapperSize / deltaX)) + '%';
+        const position = currentPosition + (100 / (wrapperSize / deltaX)) + '%';
 
         // if 3d isn't available we will use left to move
         [
@@ -149,17 +185,17 @@ module.exports = CreateReactClass({
         ].forEach((prop) => {
             list.style[prop] = CSSTranslate(position, this.props.axis);
         });
-    },
+    }
 
-    slideRight (positions){
+    slideRight = (positions) => {
         this.moveTo(this.state.firstItem - (typeof positions === 'Number' ? positions : 1));
-    },
+    }
 
-    slideLeft (positions){
+    slideLeft = (positions) => {
         this.moveTo(this.state.firstItem + (typeof positions === 'Number' ? positions : 1));
-    },
+    }
 
-    moveTo (position) {
+    moveTo = (position) => {
         // position can't be lower than 0
         position = position < 0 ? 0 : position;
         // position can't be higher than last postion
@@ -170,14 +206,14 @@ module.exports = CreateReactClass({
             // if it's not a slider, we don't need to set position here
             selectedItem: this.state.selectedItem
         });
-    },
+    }
 
     getFirstItem (selectedItem) {
         if (!this.showArrows) {
             return 0;
         }
 
-        var firstItem = selectedItem;
+        let firstItem = selectedItem;
 
         if (selectedItem >= this.lastPosition) {
             firstItem = this.lastPosition;
@@ -192,49 +228,50 @@ module.exports = CreateReactClass({
         }
 
         return firstItem;
-    },
+    }
 
     renderItems () {
-        return React.Children.map(this.props.children, (item, index) => {
-            var itemClass = klass.ITEM(false, index === this.state.selectedItem && this.state.hasMount);
+        return this.state.images.map((img, index) => {
+            const itemClass = klass.ITEM(false, index === this.state.selectedItem && this.state.hasMount);
 
-            var img = item;
+            const thumbProps = {
+                key: index,
+                ref: `thumb${index}`,
+                className: itemClass,
+                onClick: this.handleClickItem.bind(this, index, this.props.children[index])
+            };
 
-            if (item.type !== "img") {
-                img = React.Children.toArray(item.props.children).filter((children) => children.type === "img")[0];
-            }
-
-            if (img.length) {
-                console.warn(img, img.length, "No images found! Can't build the thumb list. If you don't need thumbs, set showThumbs={false} in the Carousel");
-                return null;
+            if (index === 0) {
+                img = React.cloneElement(img, {
+                    onLoad: this.setMountState
+                });
             }
 
             return (
-                <li key={index} ref={node => this["thumb" + index] = node} className={itemClass}
-                    onClick={ this.handleClickItem.bind(this, index, item) }>
+                <li {...thumbProps}>
                     { img }
                 </li>
             );
         });
-    },
+    }
 
     render () {
-        if (!this.props.children) {
+        if (!this.props.children || this.state.images.length === 0) {
             return null;
         }
 
         // show left arrow?
-        var hasPrev = this.showArrows && this.state.firstItem > 0;
+        const hasPrev = this.showArrows && this.state.firstItem > 0;
         // show right arrow
-        var hasNext = this.showArrows && this.state.firstItem < this.lastPosition;
+        const hasNext = this.showArrows && this.state.firstItem < this.lastPosition;
         // obj to hold the transformations and styles
-        var itemListStyles = {};
+        let itemListStyles = {};
 
-        var currentPosition = - this.state.firstItem * this.itemSize + 'px';
+        const currentPosition = - this.state.firstItem * this.itemSize + 'px';
 
-        var transformProp = CSSTranslate(currentPosition, this.props.axis);
+        const transformProp = CSSTranslate(currentPosition, this.props.axis);
 
-        var transitionTime = this.props.transitionTime + 'ms';
+        const transitionTime = this.props.transitionTime + 'ms';
 
         itemListStyles = {
                     'WebkitTransform': transformProp,
@@ -271,6 +308,7 @@ module.exports = CreateReactClass({
                 </div>
             </div>
         );
-
     }
-});
+}
+
+export default Thumbs;

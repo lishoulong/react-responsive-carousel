@@ -1,20 +1,19 @@
-var React = require('react');
-var ReactDOM = require('react-dom');
-var PropTypes = require('prop-types');
-var CreateReactClass = require('create-react-class');
-var klass = require('../cssClasses');
-var merge = require('../object-assign');
-var CSSTranslate = require('../CSSTranslate');
-var Swipe = require('react-easy-swipe');
-var Thumbs = require('./Thumbs');
-var customPropTypes = require('../customPropTypes');
+import React, { Component } from 'react';
+import ReactDOM from 'react-dom';
+import PropTypes from 'prop-types';
+import klass from '../cssClasses';
+import CSSTranslate from '../CSSTranslate';
+import Swipe from 'react-easy-swipe';
+import Thumbs from './Thumbs';
+import * as customPropTypes from '../customPropTypes';
 
-// react-swipe was compiled using babel
-Swipe = Swipe.default;
+const noop = () => {};
 
-module.exports = CreateReactClass({
-    displayName: 'Carousel',
-    propTypes: {
+class Carousel extends Component {
+    static displayName = 'Carousel';
+
+    static propTypes = {
+        className: PropTypes.string,
         children: PropTypes.node,
         showArrows: PropTypes.bool,
         showStatus: PropTypes.bool,
@@ -22,9 +21,9 @@ module.exports = CreateReactClass({
         infiniteLoop: PropTypes.bool,
         showThumbs: PropTypes.bool,
         selectedItem: PropTypes.number,
-        onClickItem: PropTypes.func,
-        onClickThumb: PropTypes.func,
-        onChange: PropTypes.func,
+        onClickItem: PropTypes.func.isRequired,
+        onClickThumb: PropTypes.func.isRequired,
+        onChange: PropTypes.func.isRequired,
         axis: PropTypes.oneOf(['horizontal', 'vertical']),
         width: customPropTypes.unit,
         useKeyboardArrows: PropTypes.bool,
@@ -35,37 +34,39 @@ module.exports = CreateReactClass({
         swipeScrollTolerance: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
         dynamicHeight: PropTypes.bool,
         emulateTouch: PropTypes.bool
-    },
+    };
 
-    getDefaultProps () {
-        return {
-            showIndicators: true,
-            showArrows: true,
-            showStatus:true,
-            showThumbs:true,
-            infiniteLoop: false,
-            selectedItem: 0,
-            axis: 'horizontal',
-            width: '100%',
-            useKeyboardArrows: false,
-            autoPlay: false,
-            stopOnHover: true,
-            interval: 3000,
-            transitionTime: 350,
-            swipeScrollTolerance: 5,
-            dynamicHeight: false,
-            emulateTouch: false
-        }
-    },
+    static defaultProps = {
+        showIndicators: true,
+        showArrows: true,
+        showStatus:true,
+        showThumbs:true,
+        infiniteLoop: false,
+        selectedItem: 0,
+        axis: 'horizontal',
+        width: '100%',
+        useKeyboardArrows: false,
+        autoPlay: false,
+        stopOnHover: true,
+        interval: 3000,
+        transitionTime: 350,
+        swipeScrollTolerance: 5,
+        dynamicHeight: false,
+        emulateTouch: false,
+        onClickItem: noop,
+        onClickThumb: noop,
+        onChange: noop
+    };
 
-    getInitialState () {
-        return {
-            // index of the image to be shown.
+    constructor(props) {
+        super(props);
+
+        this.state = {
             initialized: false,
-            selectedItem: this.props.selectedItem,
+            selectedItem: props.selectedItem,
             hasMount: false
-        }
-    },
+        };
+    }
 
     componentDidMount () {
         if (!this.props.children) {
@@ -73,7 +74,7 @@ module.exports = CreateReactClass({
         }
 
         this.setupCarousel();
-    },
+    }
 
     componentWillReceiveProps (nextProps) {
         if (nextProps.selectedItem !== this.state.selectedItem) {
@@ -90,17 +91,17 @@ module.exports = CreateReactClass({
                 this.destroyAutoPlay();
             }
         }
-    },
+    }
 
     componentDidUpdate(prevProps) {
         if (!prevProps.children && this.props.children && !this.state.initialized) {
             this.setupCarousel();
         }
-    },
+    }
 
     componentWillUnmount() {
         this.destroyCarousel();
-    },
+    }
 
     setupCarousel () {
         this.bindEvents();
@@ -109,41 +110,41 @@ module.exports = CreateReactClass({
             this.setupAutoPlay();
         }
 
-        var initialImage = this.getInitialImage()
+        this.setState({
+            initialized: true
+        });
+
+        const initialImage = this.getInitialImage()
         if (initialImage) {
             // if it's a carousel of images, we set the mount state after the first image is loaded
             initialImage.addEventListener('load', this.setMountState);
         } else {
             this.setMountState();
         }
-
-        this.setState({
-            initialized: true
-        });
-    },
+    }
 
     destroyCarousel () {
         if (this.state.initialized) {
             this.unbindEvents();
             this.destroyAutoPlay();
         }
-    },
+    }
 
     setupAutoPlay () {
         this.autoPlay();
 
         if (this.props.stopOnHover) {
-            var carouselWrapper = this.refs['carouselWrapper'];
+            const carouselWrapper = this.refs['carouselWrapper'];
             carouselWrapper.addEventListener('mouseenter', this.stopOnHover);
             carouselWrapper.addEventListener('touchstart', this.stopOnHover);
             carouselWrapper.addEventListener('mouseleave', this.autoPlay);
             carouselWrapper.addEventListener('touchend', this.autoPlay);
         }
-    },
+    }
 
     destroyAutoPlay () {
         this.clearAutoPlay();
-        var carouselWrapper = this.refs['carouselWrapper'];
+        const carouselWrapper = this.refs['carouselWrapper'];
 
         if (this.props.stopOnHover && carouselWrapper) {
             carouselWrapper.removeEventListener('mouseenter', this.stopOnHover);
@@ -151,26 +152,7 @@ module.exports = CreateReactClass({
             carouselWrapper.removeEventListener('mouseleave', this.autoPlay);
             carouselWrapper.removeEventListener('touchend', this.autoPlay);
         }
-    },
-
-    autoPlay () {
-        this.timer = setTimeout(() => {
-            this.increment();
-        }, this.props.interval);
-    },
-
-    clearAutoPlay () {
-        clearTimeout(this.timer);
-    },
-
-    resetAutoPlay() {
-        this.clearAutoPlay();
-        this.autoPlay();
-    },
-
-    stopOnHover () {
-        this.clearAutoPlay();
-    },
+    }
 
     bindEvents () {
         // as the widths are calculated, we need to resize
@@ -182,14 +164,14 @@ module.exports = CreateReactClass({
         if (this.props.useKeyboardArrows) {
             document.addEventListener("keydown", this.navigateWithKeyboard);
         }
-    },
+    }
 
     unbindEvents () {
         // removing listeners
         window.removeEventListener("resize", this.updateSizes);
         window.removeEventListener("DOMContentLoaded", this.updateSizes);
 
-        var initialImage = this.getInitialImage();
+        const initialImage = this.getInitialImage();
         if(initialImage) {
             initialImage.removeEventListener("load", this.setMountState);
         }
@@ -197,12 +179,39 @@ module.exports = CreateReactClass({
         if (this.props.useKeyboardArrows) {
             document.removeEventListener("keydown", this.navigateWithKeyboard);
         }
-    },
+    }
 
-    navigateWithKeyboard (e) {
-        var nextKeys = ['ArrowDown', 'ArrowRight'];
-        var prevKeys = ['ArrowUp', 'ArrowLeft'];
-        var allowedKeys = nextKeys.concat(prevKeys);
+    autoPlay = () => {
+        if (!this.props.autoPlay) {
+            return;
+        }
+
+        this.timer = setTimeout(() => {
+            this.increment();
+        }, this.props.interval);
+    }
+
+    clearAutoPlay = () => {
+        if (!this.props.autoPlay) {
+            return;
+        }
+
+        clearTimeout(this.timer);
+    }
+
+    resetAutoPlay = () => {
+        this.clearAutoPlay();
+        this.autoPlay();
+    }
+
+    stopOnHover = () => {
+        this.clearAutoPlay();
+    }
+
+    navigateWithKeyboard = (e) => {
+        const nextKeys = ['ArrowDown', 'ArrowRight'];
+        const prevKeys = ['ArrowUp', 'ArrowLeft'];
+        const allowedKeys = nextKeys.concat(prevKeys);
 
         if (allowedKeys.indexOf(e.key) > -1) {
             if (nextKeys.indexOf(e.key) > -1) {
@@ -211,94 +220,83 @@ module.exports = CreateReactClass({
                 this.decrement();
             }
         }
-    },
+    }
 
-    updateSizes () {
+    updateSizes = () => {
         if (!this.state.initialized) {
             return;
         }
 
-        var isHorizontal = this.props.axis === 'horizontal';
-        var firstItem = this.refs.item0;
-        var itemSize = isHorizontal ? firstItem.clientWidth : firstItem.clientHeight;
+        const isHorizontal = this.props.axis === 'horizontal';
+        const firstItem = this.refs.item0;
+        const itemSize = isHorizontal ? firstItem.clientWidth : firstItem.clientHeight;
 
         this.setState({
             itemSize: itemSize,
             wrapperSize: isHorizontal ? itemSize * this.props.children.length : itemSize
         });
-    },
+    }
 
-    setMountState () {
+    setMountState = () => {
         this.setState({hasMount: true});
         this.updateSizes();
-    },
+    }
 
-    handleClickItem (index, item) {
+    handleClickItem = (index, item) => {
         if (this.state.cancelClick) {
-            this.selectItem({
+            this.setState({
                 cancelClick: false
             });
 
             return;
         }
 
-        var handler = this.props.onClickItem;
-
-        if (typeof handler === 'function') {
-            handler(index, item);
-        }
+        this.props.onClickItem(index, item);
 
         if (index !== this.state.selectedItem) {
             this.setState({
                 selectedItem: index,
             });
         }
-    },
+    }
 
-    handleOnChange (index, item) {
-        var handler = this.props.onChange;
+    handleOnChange = (index, item) => {
+        this.props.onChange(index, item);
+    }
 
-        if (typeof handler === 'function') {
-            handler(index, item);
-        }
-    },
-
-    handleClickThumb(index, item) {
-        var handler = this.props.onClickThumb;
-
-        if (typeof handler === 'function') {
-            handler(index, item);
-        }
+    handleClickThumb = (index, item) => {
+        this.props.onClickThumb(index, item);
 
         this.selectItem({
             selectedItem: index
         });
-    },
+    }
 
-    onSwipeStart() {
+    onSwipeStart = () => {
+        this.clearAutoPlay();
         this.setState({
             swiping: true
         });
-    },
+    }
 
-    onSwipeEnd() {
+    onSwipeEnd = () => {
         this.setState({
-            swiping: false,
-            cancelClick: true
+            swiping: false
         });
-    },
+        this.autoPlay();
+    }
 
-    onSwipeMove(delta) {
-        var list = ReactDOM.findDOMNode(this.refs.itemList);
-        var isHorizontal = this.props.axis === 'horizontal';
+    onSwipeMove = (delta) => {
+        const list = ReactDOM.findDOMNode(this.refs.itemList);
+        const isHorizontal = this.props.axis === 'horizontal';
 
-        var initialBoundry = 0;
+        const initialBoundry = 0;
 
-        var currentPosition = - this.state.selectedItem * 100;
-        var finalBoundry = - (this.props.children.length - 1) * 100;
+        const currentPosition = - this.state.selectedItem * 100;
+        const finalBoundry = - (this.props.children.length - 1) * 100;
 
-        var axisDelta = isHorizontal ? delta.x : delta.y;
-        var handledDelta = axisDelta;
+        const axisDelta = isHorizontal ? delta.x : delta.y;
+        let handledDelta = axisDelta;
 
         // prevent user from swiping left out of boundaries
         if (currentPosition === initialBoundry && axisDelta > 0) {
@@ -310,7 +308,7 @@ module.exports = CreateReactClass({
             handledDelta = 0;
         }
 
-        var position = currentPosition + (100 / (this.state.itemSize / handledDelta)) + '%';
+        const position = currentPosition + (100 / (this.state.itemSize / handledDelta)) + '%';
 
         [
             'WebkitTransform',
@@ -324,19 +322,27 @@ module.exports = CreateReactClass({
         });
 
         // allows scroll if the swipe was within the tolerance
-        return Math.abs(axisDelta) > this.props.swipeScrollTolerance;
-    },
+        const hasMoved = Math.abs(axisDelta) > this.props.swipeScrollTolerance;
 
-    decrement (positions){
+        if (hasMoved && !this.state.cancelClick) {
+            this.setState({
+                cancelClick: true
+            });
+        }
+
+        return hasMoved;
+    }
+
+    decrement = (positions) => {
         this.moveTo(this.state.selectedItem - (typeof positions === 'Number' ? positions : 1));
-    },
+    }
 
-    increment (positions){
+    increment = (positions) => {
         this.moveTo(this.state.selectedItem + (typeof positions === 'Number' ? positions : 1));
-    },
+    }
 
-    moveTo (position) {
-        var lastPosition = this.props.children.length  - 1;
+    moveTo = (position) => {
+        const lastPosition = this.props.children.length  - 1;
 
         if (position < 0 ) {
           position = this.props.infiniteLoop ?  lastPosition : 0;
@@ -354,77 +360,29 @@ module.exports = CreateReactClass({
         if (this.props.autoPlay) {
             this.resetAutoPlay();
         }
-    },
+    }
 
-    changeItem (e) {
-        var newIndex = e.target.value;
+    changeItem = (e) => {
+        const newIndex = e.target.value;
 
         this.selectItem({
             selectedItem: newIndex
         });
-    },
+    }
 
-    selectItem (state) {
+    selectItem = (state) => {
         this.setState(state);
         this.handleOnChange(state.selectedItem, this.props.children[state.selectedItem]);
-    },
+    }
 
-    renderItems () {
-        return React.Children.map(this.props.children, (item, index) => {
-            var hasMount = this.state.hasMount;
-            var itemClass = klass.ITEM(true, index === this.state.selectedItem);
-
-            return (
-                <li ref={"item" + index} key={"itemKey" + index} className={itemClass}
-                    onClick={ this.handleClickItem.bind(this, index, item) }>
-                    { item }
-                </li>
-            );
-        });
-    },
-
-    renderControls () {
-        if (!this.props.showIndicators) {
-            return null
-        }
-
-        return (
-            <ul className="control-dots">
-                {React.Children.map(this.props.children, (item, index) => {
-                    return <li className={klass.DOT(index === this.state.selectedItem)} onClick={this.changeItem} value={index} key={index} />;
-                })}
-            </ul>
-        );
-    },
-
-    renderStatus () {
-        if (!this.props.showStatus) {
-            return null
-        }
-
-        return <p className="carousel-status">{this.state.selectedItem + 1} of {this.props.children.length}</p>;
-    },
-
-    renderThumbs () {
-        if (!this.props.showThumbs) {
-            return null
-        }
-
-        return (
-            <Thumbs onSelectItem={this.handleClickThumb} selectedItem={this.state.selectedItem} transitionTime={this.props.transitionTime}>
-                {this.props.children}
-            </Thumbs>
-        );
-    },
-
-    getInitialImage () {
+    getInitialImage = () => {
         const selectedItem = this.props.selectedItem;
         const item = this.refs[`item${selectedItem}`];
         const images = item && item.getElementsByTagName('img');
         return images && images[selectedItem];
-    },
+    }
 
-    getVariableImageHeight (position) {
+    getVariableImageHeight = (position) => {
         const item = this.refs[`item${position}`];
         const images = item && item.getElementsByTagName('img');
         if (this.state.hasMount && images.length > 0) {
@@ -445,36 +403,80 @@ module.exports = CreateReactClass({
         }
 
         return null;
-    },
+    }
+
+    renderItems () {
+        return React.Children.map(this.props.children, (item, index) => {
+            const hasMount = this.state.hasMount;
+            const itemClass = klass.ITEM(true, index === this.state.selectedItem);
+
+            return (
+                <li ref={"item" + index} key={"itemKey" + index} className={itemClass}
+                    onClick={ this.handleClickItem.bind(this, index, item) }>
+                    { item }
+                </li>
+            );
+        });
+    }
+
+    renderControls () {
+        if (!this.props.showIndicators) {
+            return null
+        }
+
+        return (
+            <ul className="control-dots">
+                {React.Children.map(this.props.children, (item, index) => {
+                    return <li className={klass.DOT(index === this.state.selectedItem)} onClick={this.changeItem} value={index} key={index} />;
+                })}
+            </ul>
+        );
+    }
+
+    renderStatus () {
+        if (!this.props.showStatus) {
+            return null
+        }
+
+        return <p className="carousel-status">{this.state.selectedItem + 1} of {this.props.children.length}</p>;
+    }
+
+    renderThumbs () {
+        if (!this.props.showThumbs || this.props.children.length === 0) {
+            return null
+        }
+
+        return (
+            <Thumbs onSelectItem={this.handleClickThumb} selectedItem={this.state.selectedItem} transitionTime={this.props.transitionTime}>
+                {this.props.children}
+            </Thumbs>
+        );
+    }
 
     render () {
-        if (!this.props.children) {
+        if (!this.props.children || this.props.children.length === 0) {
             return null;
         }
 
-        var itemsLength = this.props.children.length;
+        const itemsLength = this.props.children.length;
 
-        if (itemsLength === 0) {
-            return null;
-        }
+        const isHorizontal = this.props.axis === 'horizontal';
 
-        var isHorizontal = this.props.axis === 'horizontal';
-
-        var canShowArrows = this.props.showArrows && itemsLength > 1;
+        const canShowArrows = this.props.showArrows && itemsLength > 1;
 
         // show left arrow?
-        var hasPrev = canShowArrows && (this.state.selectedItem > 0 || this.props.infiniteLoop);
+        const hasPrev = canShowArrows && (this.state.selectedItem > 0 || this.props.infiniteLoop);
         // show right arrow
-        var hasNext = canShowArrows && (this.state.selectedItem < itemsLength - 1 || this.props.infiniteLoop);
+        const hasNext = canShowArrows && (this.state.selectedItem < itemsLength - 1 || this.props.infiniteLoop);
         // obj to hold the transformations and styles
-        var itemListStyles = {};
+        let itemListStyles = {};
 
-        var currentPosition = - this.state.selectedItem * 100 + '%';
+        const currentPosition = - this.state.selectedItem * 100 + '%';
 
         // if 3d is available, let's take advantage of the performance of transform
-        var transformProp = CSSTranslate(currentPosition, this.props.axis);
+        const transformProp = CSSTranslate(currentPosition, this.props.axis);
 
-        var transitionTime = this.props.transitionTime + 'ms';
+        const transitionTime = this.props.transitionTime + 'ms';
 
         itemListStyles = {
                     'WebkitTransform': transformProp,
@@ -491,7 +493,7 @@ module.exports = CreateReactClass({
                'msTransitionDuration': transitionTime
         };
 
-        var swiperProps = {
+        let swiperProps = {
             selectedItem: this.state.selectedItem,
             className: klass.SLIDER(true, this.state.swiping),
             onSwipeMove: this.onSwipeMove,
@@ -501,13 +503,11 @@ module.exports = CreateReactClass({
             ref: 'itemList'
         };
 
-        var containerStyles = {};
+        const containerStyles = {};
 
         if (isHorizontal) {
-            merge(swiperProps, {
-                onSwipeLeft: this.increment,
-                onSwipeRight: this.decrement
-            });
+            swiperProps.onSwipeLeft = this.increment;
+            swiperProps.onSwipeRight = this.decrement;
 
             if (this.props.dynamicHeight) {
                 const itemHeight = this.getVariableImageHeight(this.state.selectedItem);
@@ -516,11 +516,8 @@ module.exports = CreateReactClass({
             }
 
         } else {
-            merge(swiperProps, {
-                onSwipeUp: this.decrement,
-                onSwipeDown: this.increment
-            });
-
+            swiperProps.onSwipeUp = this.decrement;
+            swiperProps.onSwipeDown = this.increment;
             swiperProps.style.height = this.state.itemSize;
             containerStyles.height = this.state.itemSize;
         }
@@ -544,4 +541,6 @@ module.exports = CreateReactClass({
         );
 
     }
-});
+}
+
+export default Carousel;

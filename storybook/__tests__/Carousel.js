@@ -1,11 +1,14 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { shallow, mount } from 'enzyme';
+import renderer from 'react-test-renderer';
+import * as index from '../index';
 
 describe("Slider", function() {
 	jest.autoMockOff();
 
-	const Carousel = require('../components/Carousel');
+	const Carousel = require('../components/Carousel').default;
+    const Thumbs = require('../components/Thumbs').default;
 
 	let component, componentInstance, totalChildren, lastItemIndex;
 
@@ -22,22 +25,40 @@ describe("Slider", function() {
         lastItemIndex = totalChildren - 1;
 	}
 
+    const baseChildren = [
+        <img src="assets/1.jpeg" key="1" />,
+        <img src="assets/2.jpeg" key="2" />,
+        <img src="assets/3.jpeg" key="3" />,
+        <img src="assets/4.jpeg" key="4" />,
+        <img src="assets/5.jpeg" key="5" />,
+        <img src="assets/6.jpeg" key="6" />,
+        <img src="assets/7.jpeg" key="7" />,
+    ];
+
     const renderDefaultComponent = (props) => {
-        bootstrap(props, [
-                <img src="assets/1.jpeg" key="1" />,
-                <img src="assets/2.jpeg" key="2" />,
-                <img src="assets/3.jpeg" key="3" />,
-                <img src="assets/4.jpeg" key="4" />,
-                <img src="assets/5.jpeg" key="5" />,
-                <img src="assets/6.jpeg" key="6" />,
-                <img src="assets/7.jpeg" key="7" />,
-            ]
-        );
+        bootstrap(props, baseChildren);
     }
+
+    const renderForSnapshot = (props, children) => {
+        return renderer.create(
+            <Carousel {...props}>
+                {children}
+            </Carousel>
+        ).toJSON();
+    };
 
 	beforeEach(() => {
 		renderDefaultComponent({});
 	});
+
+    describe("Exports", () => {
+        it('should export Carousel from the main index file', () => {
+            expect(index.Carousel).toBe(Carousel);
+        });
+        it('should export Thumbs from the main index file', () => {
+            expect(index.Thumbs).toBe(Thumbs);
+        });
+    });
 
   	describe("Basics", () => {
         describe("DisplayName", () => {
@@ -462,6 +483,58 @@ describe("Slider", function() {
                     y: 10
                 })).toBe(false);
             });
+        });
+    });
+
+    describe('Snapshots', () => {
+        it('default', () => {
+            expect(renderForSnapshot({}, baseChildren)).toMatchSnapshot();
+        });
+
+        it('no thumbs', () => {
+            expect(renderForSnapshot({
+                showThumbs: false
+            }, baseChildren)).toMatchSnapshot();
+        });
+
+        it('no arrows', () => {
+            expect(renderForSnapshot({
+                showArrows: false
+            }, baseChildren)).toMatchSnapshot();
+        });
+
+        it('no indicators', () => {
+            expect(renderForSnapshot({
+                showIndicators: false
+            }, baseChildren)).toMatchSnapshot();
+        });
+
+        it('no indicators', () => {
+            expect(renderForSnapshot({
+                showStatus: false
+            }, baseChildren)).toMatchSnapshot();
+        });
+
+        it('custom class name', () => {
+            expect(renderForSnapshot({
+                className: 'my-custom-carousel'
+            }, baseChildren)).toMatchSnapshot();
+        });
+
+        it('custom width', () => {
+            expect(renderForSnapshot({
+                width: '700px'
+            }, baseChildren)).toMatchSnapshot();
+        });
+
+        it('vertical axis', () => {
+           expect(renderForSnapshot({
+                axis: 'vertical'
+            }, baseChildren)).toMatchSnapshot();
+        });
+
+        it('no children at mount', () => {
+            expect(renderForSnapshot({}, null)).toMatchSnapshot();
         });
     });
 
