@@ -9,6 +9,8 @@ import * as customPropTypes from '../customPropTypes';
 
 const noop = () => {};
 
+const defaultStatusFormatter = (current, total) => `${current} of ${total}`;
+
 class Carousel extends Component {
     static displayName = 'Carousel';
 
@@ -31,9 +33,10 @@ class Carousel extends Component {
         stopOnHover: PropTypes.bool,
         interval: PropTypes.number,
         transitionTime: PropTypes.number,
-        swipeScrollTolerance: PropTypes.oneOfType([PropTypes.number]),
+        swipeScrollTolerance: PropTypes.number,
         dynamicHeight: PropTypes.bool,
-        emulateTouch: PropTypes.bool
+        emulateTouch: PropTypes.bool,
+        statusFormatter: PropTypes.func.isRequired
     };
 
     static defaultProps = {
@@ -55,7 +58,8 @@ class Carousel extends Component {
         emulateTouch: false,
         onClickItem: noop,
         onClickThumb: noop,
-        onChange: noop
+        onChange: noop,
+        statusFormatter: defaultStatusFormatter
     };
 
     constructor(props) {
@@ -205,16 +209,16 @@ class Carousel extends Component {
     }
 
     navigateWithKeyboard = (e) => {
-        const nextKeys = ['ArrowDown', 'ArrowRight'];
-        const prevKeys = ['ArrowUp', 'ArrowLeft'];
-        const allowedKeys = nextKeys.concat(prevKeys);
+        const { axis } = this.props;
+        const isHorizontal = axis === 'horizontal';
 
-        if (allowedKeys.indexOf(e.key) > -1) {
-            if (nextKeys.indexOf(e.key) > -1) {
-                this.increment();
-            } else if (prevKeys.indexOf(e.key) > -1) {
-                this.decrement();
-            }
+        const nextKey = isHorizontal ? 'ArrowRight' : 'ArrowDown';
+        const prevKey = isHorizontal ? 'ArrowLeft' : 'ArrowUp';
+
+        if (nextKey === e.key) {
+            this.increment();
+        } else if (prevKey === e.key) {
+            this.decrement();
         }
     }
 
@@ -276,6 +280,7 @@ class Carousel extends Component {
     }
 
     onSwipeEnd = () => {
+        this.resetPosition();
         this.setState({
             swiping: false
         });
@@ -283,7 +288,6 @@ class Carousel extends Component {
     }
 
     onSwipeMove = (delta) => {
-        const list = ReactDOM.findDOMNode(this.refs.itemList);
         const isHorizontal = this.props.axis === 'horizontal';
 
         const initialBoundry = 0;
@@ -306,16 +310,7 @@ class Carousel extends Component {
 
         const position = currentPosition + (100 / (this.state.itemSize / handledDelta)) + '%';
 
-        [
-            'WebkitTransform',
-            'MozTransform',
-            'MsTransform',
-            'OTransform',
-            'transform',
-            'msTransform'
-        ].forEach((prop) => {
-            list.style[prop] = CSSTranslate(position, this.props.axis);
-        });
+        this.setPosition(position);
 
         // allows scroll if the swipe was within the tolerance
         const hasMoved = Math.abs(axisDelta) > this.props.swipeScrollTolerance;
@@ -327,6 +322,25 @@ class Carousel extends Component {
         }
 
         return hasMoved;
+    }
+
+    resetPosition = () => {
+        const currentPosition = - this.state.selectedItem * 100 + '%';
+        this.setPosition(currentPosition);
+    }
+
+    setPosition = (position) => {
+        const list = ReactDOM.findDOMNode(this.refs.itemList);
+        [
+            'WebkitTransform',
+            'MozTransform',
+            'MsTransform',
+            'OTransform',
+            'transform',
+            'msTransform'
+        ].forEach((prop) => {
+            list.style[prop] = CSSTranslate(position, this.props.axis);
+        });
     }
 
     decrement = (positions) => {
@@ -434,7 +448,7 @@ class Carousel extends Component {
             return null
         }
 
-        return <p className="carousel-status">{this.state.selectedItem + 1} of {this.props.children.length}</p>;
+        return <p className="carousel-status">{this.props.statusFormatter(this.state.selectedItem + 1, this.props.children.length)}</p>;
     }
 
     renderThumbs () {
@@ -468,7 +482,6 @@ class Carousel extends Component {
         let itemListStyles = {};
 
         const currentPosition = - this.state.selectedItem * 100 + '%';
-
         // if 3d is available, let's take advantage of the performance of transform
         const transformProp = CSSTranslate(currentPosition, this.props.axis);
 
@@ -480,14 +493,20 @@ class Carousel extends Component {
                         'MsTransform': transformProp,
                          'OTransform': transformProp,
                           'transform': transformProp,
-                        'msTransform': transformProp,
-           'WebkitTransitionDuration': transitionTime,
-              'MozTransitionDuration': transitionTime,
-               'MsTransitionDuration': transitionTime,
-                'OTransitionDuration': transitionTime,
-                 'transitionDuration': transitionTime,
-               'msTransitionDuration': transitionTime
+                        'msTransform': transformProp
         };
+
+        if (!this.state.swiping) {
+            itemListStyles = {
+                ...itemListStyles,
+               'WebkitTransitionDuration': transitionTime,
+                  'MozTransitionDuration': transitionTime,
+                   'MsTransitionDuration': transitionTime,
+                    'OTransitionDuration': transitionTime,
+                     'transitionDuration': transitionTime,
+                   'msTransitionDuration': transitionTime
+            }
+        }
 
         let swiperProps = {
             selectedItem: this.state.selectedItem,

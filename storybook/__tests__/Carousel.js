@@ -239,42 +239,86 @@ describe("Slider", function() {
     });
 
     describe("navigateWithKeyboard", () => {
-        beforeEach(() => {
-            renderDefaultComponent({
-                useKeyboardArrows: true
+        describe("Axis === horizontal", () => {
+            beforeEach(() => {
+                renderDefaultComponent({
+                    axis: 'horizontal',
+                    useKeyboardArrows: true
+                });
+
+                componentInstance.increment = jest.genMockFunction();
+                componentInstance.decrement = jest.genMockFunction();
             });
 
-            componentInstance.increment = jest.genMockFunction();
-            componentInstance.decrement = jest.genMockFunction();
+            it('should call only increment on ArrowRight', () => {
+                componentInstance.navigateWithKeyboard({key: 'ArrowRight'});
+
+                expect(componentInstance.increment.mock.calls.length).toBe(1);
+                expect(componentInstance.decrement.mock.calls.length).toBe(0);
+            });
+
+            it('should call only decrement on ArrowLeft', () => {
+                componentInstance.navigateWithKeyboard({key: 'ArrowLeft'});
+
+                expect(componentInstance.decrement.mock.calls.length).toBe(1);
+                expect(componentInstance.increment.mock.calls.length).toBe(0);
+            });
+
+            it('should not call increment on ArrowDown', () => {
+                componentInstance.navigateWithKeyboard({key: 'ArrowDown'});
+
+                expect(componentInstance.increment.mock.calls.length).toBe(0);
+                expect(componentInstance.decrement.mock.calls.length).toBe(0);
+            });
+
+            it('should not call decrement on ArrowUp', () => {
+                componentInstance.navigateWithKeyboard({key: 'ArrowUp'});
+
+                expect(componentInstance.decrement.mock.calls.length).toBe(0);
+                expect(componentInstance.increment.mock.calls.length).toBe(0);
+            });
         });
 
-        it('should call only increment on ArrowDown', () => {
-            componentInstance.navigateWithKeyboard({key: 'ArrowDown'});
+        describe("Axis === vertical", () => {
+            beforeEach(() => {
+                renderDefaultComponent({
+                    axis: 'vertical',
+                    useKeyboardArrows: true
+                });
 
-            expect(componentInstance.increment.mock.calls.length).toBe(1);
-            expect(componentInstance.decrement.mock.calls.length).toBe(0);
+                componentInstance.increment = jest.genMockFunction();
+                componentInstance.decrement = jest.genMockFunction();
+            });
+
+            it('should call only increment on ArrowDown', () => {
+                componentInstance.navigateWithKeyboard({key: 'ArrowDown'});
+
+                expect(componentInstance.increment.mock.calls.length).toBe(1);
+                expect(componentInstance.decrement.mock.calls.length).toBe(0);
+            });
+
+            it('should call only decrement on ArrowUp', () => {
+                componentInstance.navigateWithKeyboard({key: 'ArrowUp'});
+
+                expect(componentInstance.decrement.mock.calls.length).toBe(1);
+                expect(componentInstance.increment.mock.calls.length).toBe(0);
+            });
+
+            it('should not call increment on ArrowRight', () => {
+                componentInstance.navigateWithKeyboard({key: 'ArrowRight'});
+
+                expect(componentInstance.increment.mock.calls.length).toBe(0);
+                expect(componentInstance.decrement.mock.calls.length).toBe(0);
+            });
+
+            it('should not call decrement on ArrowLeft', () => {
+                componentInstance.navigateWithKeyboard({key: 'ArrowLeft'});
+
+                expect(componentInstance.decrement.mock.calls.length).toBe(0);
+                expect(componentInstance.increment.mock.calls.length).toBe(0);
+            });
         });
 
-        it('should call only increment on ArrowRight', () => {
-            componentInstance.navigateWithKeyboard({key: 'ArrowRight'});
-
-            expect(componentInstance.increment.mock.calls.length).toBe(1);
-            expect(componentInstance.decrement.mock.calls.length).toBe(0);
-        });
-
-        it('should call only decrement on ArrowUp', () => {
-            componentInstance.navigateWithKeyboard({key: 'ArrowUp'});
-
-            expect(componentInstance.decrement.mock.calls.length).toBe(1);
-            expect(componentInstance.increment.mock.calls.length).toBe(0);
-        });
-
-        it('should call only decrement on ArrowLeft', () => {
-            componentInstance.navigateWithKeyboard({key: 'ArrowLeft'});
-
-            expect(componentInstance.decrement.mock.calls.length).toBe(1);
-            expect(componentInstance.increment.mock.calls.length).toBe(0);
-        });
     });
 
     describe("changeItem", () => {
@@ -468,7 +512,20 @@ describe("Slider", function() {
         });
     });
 
-    describe('For Mobile', () => {
+    describe('Swiping', () => {
+        describe('onSwipeStart', () => {
+            it('should set swiping to true', () => {
+                componentInstance.onSwipeStart();
+                expect(componentInstance.state.swiping).toBe(true);
+            });
+
+            it('should stop autoplay', () => {
+                componentInstance.clearAutoPlay = jest.genMockFunction();
+                componentInstance.onSwipeStart();
+                expect(componentInstance.clearAutoPlay.mock.calls.length).toBe(1);
+            });
+        });
+
         describe('onSwipeMove', () => {
             it('should return true to stop scrolling if there was movement in the same direction as the carousel axis', () => {
                 expect(componentInstance.onSwipeMove({
@@ -482,6 +539,23 @@ describe("Slider", function() {
                     x: 0,
                     y: 10
                 })).toBe(false);
+            });
+        });
+
+        describe('onSwipeEnd', () => {
+            it('should set swiping to false', () => {
+                componentInstance.onSwipeEnd();
+                expect(componentInstance.state.swiping).toBe(false);
+            });
+            it('should revert back to inital position', () => {
+                componentInstance.resetPosition = jest.genMockFunction();
+                componentInstance.onSwipeEnd();
+                expect(componentInstance.resetPosition.mock.calls.length).toBe(1);
+            });
+            it('should start autoplay again', () => {
+                componentInstance.autoPlay = jest.genMockFunction();
+                componentInstance.onSwipeEnd();
+                expect(componentInstance.autoPlay.mock.calls.length).toBe(1);
             });
         });
     });
