@@ -9,7 +9,7 @@ import * as customPropTypes from '../customPropTypes';
 
 const noop = () => {};
 
-const defaultStatusFormatter = (current, total) => `${current} of ${total}`;
+const defaultStatusFormatter = (current, total) => `${current} / ${total}`;
 
 class Carousel extends Component {
     static displayName = 'Carousel';
