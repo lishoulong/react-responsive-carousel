@@ -202,7 +202,7 @@
     text-align: center;
     width: 100%;
     top: 40%;
-    left: 98%; }
+    left: 91%; }
     @media (min-width: 960px) {
       .carousel .control-dots {
         bottom: 0; } }
@@ -227,11 +227,11 @@
   .carousel .carousel-status {
     position: absolute;
     top: 7%;
-    right: 19px;
     padding: 5px;
     font-size: 10px;
     text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.9);
     color: #fff;
-    width: 10px; }
+    width: 10px;
+    left: 91%; }
   .carousel:hover .slide .legend {
     opacity: 1; }
